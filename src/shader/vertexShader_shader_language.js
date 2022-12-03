@@ -7,14 +7,16 @@ export default `
     //Model-View-Matrix
     uniform mat4 uMVMatrix;
 
+    uniform vec4 uColor;
+
     varying vec4 vColor;
 
     void main() {
         
         gl_Position = uPMatrix * uMVMatrix * vec4(aPosition, 1.0);
 
-        vColor = vec4(aNormal.x, aNormal.y, aNormal.z, 1.0);
-        vColor = (vColor + 1.0) / 2.0;
+        vColor = vec4(aNormal.z, aNormal.z, aNormal.z, 1.0);
+        vColor = uColor * (vColor + 1.0) / 2.0;
 
     }
 `;
