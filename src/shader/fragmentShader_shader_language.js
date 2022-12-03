@@ -6,6 +6,7 @@ export default `
     void main(){
         //vierdimensionaler Vektor vec4(1, 1, 1, 1, 1)
         //RGB + Alpha Kanal
-        gl_FragColor = vColor;
+        //vColor = vec4(gl_FragCoord.z, gl_FragCoord.z, gl_FragCoord.z, 1);
+        gl_FragColor = vec4(gl_FragCoord.z, gl_FragCoord.z, gl_FragCoord.z, 1);
     }
 `;

@@ -1,4 +1,4 @@
-import { mat4 } from "gl-matrix";
+import { mat4, mat3 } from "gl-matrix";
 import vertexGlsl from "../shader/vertexShader_shader_language.js";
 import fragmentGlsl from "../shader/fragmentShader_shader_language.js";
 import { geometryModelDatas } from "./vertexData.js";
@@ -43,7 +43,7 @@ const camera = {
     // given in radian.
     zAngle: 0,
     // Distance in XZ-Plane from center when orbiting.
-    distance: 8,
+    distance: 4,
 };
 
 function start() {
@@ -136,6 +136,8 @@ function initUniforms() {
     prog.mvMatrixUniform = gl.getUniformLocation(prog, "uMVMatrix");
 
     prog.colorUniform = gl.getUniformLocation(prog, "uColor");
+
+    prog.nMatrixUniform = gl.getUniformLocation(prog, "uNMatrix");
 }
 
 function initModels() {
@@ -155,7 +157,7 @@ function initModels() {
     createModel(
         "sphere",
         fs,
-        [1, 0, 0, 1],
+        [0, 0, 0, 1],
         [0, 0, 0],
         [0, 0, 0],
         [1.0, 1.0, 1.0]
@@ -163,7 +165,7 @@ function initModels() {
     createModel(
         "sphere",
         fs,
-        [0, 1, 0, 1],
+        [0, 0, 0, 1],
         [0, 0.5, 0.5],
         [0, 0, 0],
         [1.0, 1.0, 1.0]
@@ -171,7 +173,7 @@ function initModels() {
     createModel(
         "sphere",
         fs,
-        [0, 0, 1, 1],
+        [0, 0, 0, 1],
         [0, 1.0, 1.0],
         [0, 0, 0],
         [1.0, 1.0, 1.0]
@@ -210,6 +212,8 @@ function initTransformations(model, translate, rotate, scale) {
     model.mMatrix = mat4.create();
     //mvMatrix - ist ModelView Matrix
     model.mvMatrix = mat4.create();
+
+    model.nMatrix = mat3.create();
 }
 
 function updateTransformations(model) {
@@ -228,6 +232,9 @@ function updateTransformations(model) {
     mat4.scale(mMatrix, mMatrix, model.scale);
 
     mat4.multiply(mvMatrix, camera.vMatrix, mMatrix);
+
+    // Calculate normal matrix from model-view matrix.
+    mat3.normalFromMat4(model.nMatrix, mvMatrix);
 }
 
 /**
@@ -321,38 +328,38 @@ function initEventHandler() {
                 camera.lrtb += sign * 0.1;
                 camera.distance += sign * deltaTranslate;
                 break;
-            case "D":
-                camera.eye[x] += deltaTranslate;
-                camera.center[x] += deltaTranslate;
-                break;
+            //            case "D":
+            //                camera.eye[x] += deltaTranslate;
+            //                camera.center[x] += deltaTranslate;
+            //                break;
+            //
+            //            case "A":
+            //                camera.eye[x] -= deltaTranslate;
+            //                camera.center[x] -= deltaTranslate;
+            //                break;
 
-            case "A":
-                camera.eye[x] -= deltaTranslate;
-                camera.center[x] -= deltaTranslate;
-                break;
+            //            case "W":
+            //                camera.eye[y] += deltaTranslate;
+            //                camera.center[y] += deltaTranslate;
+            //                break;
+            //
+            //            case "S":
+            //                camera.eye[y] -= deltaTranslate;
+            //                camera.center[y] -= deltaTranslate;
+            //                break;
+            //
+            //            case "X":
+            //                interactiveModel.rotate[0] += sign * deltaRotate;
+            //                break;
+            //
+            //            case "Y":
+            //                interactiveModel.rotate[1] += sign * deltaRotate;
+            //                break;
 
-            case "W":
-                camera.eye[y] += deltaTranslate;
-                camera.center[y] += deltaTranslate;
-                break;
-
-            case "S":
-                camera.eye[y] -= deltaTranslate;
-                camera.center[y] -= deltaTranslate;
-                break;
-
-            case "X":
-                //interactiveModel.rotate[0] += sign * deltaRotate;
-                break;
-
-            case "Y":
-                //interactiveModel.rotate[1] += sign * deltaRotate;
-                break;
-
-            case "Z":
-                //interactiveModel.rotate[2] += sign * deltaRotate;
-                break;
-            case "K":
+            //            case "Z":
+            //                interactiveModel.rotate[2] += sign * deltaRotate;
+            //                break;
+            //            case "K":
             //interactiveModel = models[0];
             //interactiveModel.translate[2] = -1.5 * Math.cos(camera.zAngle);
             //interactiveModel.translate[0] = -1.5 * Math.sin(camera.zAngle);
@@ -412,6 +419,7 @@ function render() {
         // in Kamera Koordinaten
         gl.uniformMatrix4fv(prog.mvMatrixUniform, false, models[i].mvMatrix);
         gl.uniform4fv(prog.colorUniform, models[i].color);
+        gl.uniformMatrix3fv(prog.nMatrixUniform, false, models[i].nMatrix);
         draw(models[i]);
     }
 }
