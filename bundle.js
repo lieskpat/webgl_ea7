@@ -7,6 +7,8 @@ var vertexGlsl = `
     //Model-View-Matrix
     uniform mat4 uMVMatrix;
 
+    uniform mat3 uNMatrix;
+
     uniform vec4 uColor;
 
     varying vec4 vColor;
@@ -14,9 +16,10 @@ var vertexGlsl = `
     void main() {
         
         gl_Position = uPMatrix * uMVMatrix * vec4(aPosition, 1.0);
-
-        vColor = vec4(aNormal.z, aNormal.z, aNormal.z, 1.0);
-        vColor = uColor * (vColor + 1.0) / 2.0;
+        vec3 tNormal = uNMatrix * aNormal;
+        //vColor = vec4(tNormal.z, tNormal.z, tNormal.z, 1.0);
+        //vColor = uColor * (vColor + 1.0) / 2.0;
+        vColor = uColor;
 
     }
 `;
@@ -29,7 +32,8 @@ var fragmentGlsl = `
     void main(){
         //vierdimensionaler Vektor vec4(1, 1, 1, 1, 1)
         //RGB + Alpha Kanal
-        gl_FragColor = vColor;
+        //vColor = vec4(gl_FragCoord.z, gl_FragCoord.z, gl_FragCoord.z, 1);
+        gl_FragColor = vec4(gl_FragCoord.z, gl_FragCoord.z, gl_FragCoord.z, 1);
     }
 `;
 
@@ -50,6 +54,92 @@ if (!Math.hypot) Math.hypot = function () {
 
   return Math.sqrt(y);
 };
+
+/**
+ * 3x3 Matrix
+ * @module mat3
+ */
+
+/**
+ * Creates a new identity mat3
+ *
+ * @returns {mat3} a new 3x3 matrix
+ */
+
+function create$2() {
+  var out = new ARRAY_TYPE(9);
+
+  if (ARRAY_TYPE != Float32Array) {
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
+    out[5] = 0;
+    out[6] = 0;
+    out[7] = 0;
+  }
+
+  out[0] = 1;
+  out[4] = 1;
+  out[8] = 1;
+  return out;
+}
+/**
+ * Calculates a 3x3 normal matrix (transpose inverse) from the 4x4 matrix
+ *
+ * @param {mat3} out mat3 receiving operation result
+ * @param {ReadonlyMat4} a Mat4 to derive the normal matrix from
+ *
+ * @returns {mat3} out
+ */
+
+function normalFromMat4(out, a) {
+  var a00 = a[0],
+      a01 = a[1],
+      a02 = a[2],
+      a03 = a[3];
+  var a10 = a[4],
+      a11 = a[5],
+      a12 = a[6],
+      a13 = a[7];
+  var a20 = a[8],
+      a21 = a[9],
+      a22 = a[10],
+      a23 = a[11];
+  var a30 = a[12],
+      a31 = a[13],
+      a32 = a[14],
+      a33 = a[15];
+  var b00 = a00 * a11 - a01 * a10;
+  var b01 = a00 * a12 - a02 * a10;
+  var b02 = a00 * a13 - a03 * a10;
+  var b03 = a01 * a12 - a02 * a11;
+  var b04 = a01 * a13 - a03 * a11;
+  var b05 = a02 * a13 - a03 * a12;
+  var b06 = a20 * a31 - a21 * a30;
+  var b07 = a20 * a32 - a22 * a30;
+  var b08 = a20 * a33 - a23 * a30;
+  var b09 = a21 * a32 - a22 * a31;
+  var b10 = a21 * a33 - a23 * a31;
+  var b11 = a22 * a33 - a23 * a32; // Calculate the determinant
+
+  var det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+
+  if (!det) {
+    return null;
+  }
+
+  det = 1.0 / det;
+  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+  out[1] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+  out[2] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+  out[3] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+  out[4] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+  out[5] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+  out[6] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+  out[7] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+  out[8] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+  return out;
+}
 
 /**
  * 4x4 Matrix<br>Format: column-major, when typed out it looks like row-major<br>The matrices are being post multiplied.
@@ -1101,7 +1191,7 @@ const camera = {
     // given in radian.
     zAngle: 0,
     // Distance in XZ-Plane from center when orbiting.
-    distance: 8,
+    distance: 4,
 };
 
 function start() {
@@ -1194,6 +1284,8 @@ function initUniforms() {
     prog.mvMatrixUniform = gl.getUniformLocation(prog, "uMVMatrix");
 
     prog.colorUniform = gl.getUniformLocation(prog, "uColor");
+
+    prog.nMatrixUniform = gl.getUniformLocation(prog, "uNMatrix");
 }
 
 function initModels() {
@@ -1213,7 +1305,7 @@ function initModels() {
     createModel(
         "sphere",
         fs,
-        [1, 0, 0, 1],
+        [0, 0, 0, 1],
         [0, 0, 0],
         [0, 0, 0],
         [1.0, 1.0, 1.0]
@@ -1221,7 +1313,7 @@ function initModels() {
     createModel(
         "sphere",
         fs,
-        [0, 1, 0, 1],
+        [0, 0, 0, 1],
         [0, 0.5, 0.5],
         [0, 0, 0],
         [1.0, 1.0, 1.0]
@@ -1229,7 +1321,7 @@ function initModels() {
     createModel(
         "sphere",
         fs,
-        [0, 0, 1, 1],
+        [0, 0, 0, 1],
         [0, 1.0, 1.0],
         [0, 0, 0],
         [1.0, 1.0, 1.0]
@@ -1268,6 +1360,8 @@ function initTransformations(model, translate, rotate, scale) {
     model.mMatrix = create$1();
     //mvMatrix - ist ModelView Matrix
     model.mvMatrix = create$1();
+
+    model.nMatrix = create$2();
 }
 
 function updateTransformations(model) {
@@ -1286,6 +1380,9 @@ function updateTransformations(model) {
     scale(mMatrix, mMatrix, model.scale);
 
     multiply(mvMatrix, camera.vMatrix, mMatrix);
+
+    // Calculate normal matrix from model-view matrix.
+    normalFromMat4(model.nMatrix, mvMatrix);
 }
 
 /**
@@ -1340,8 +1437,6 @@ function initDataAndBuffers(model, geometryname) {
 function initEventHandler() {
     const deltaRotate = Math.PI / 36;
     const deltaTranslate = 0.05;
-    const x = 0,
-        y = 1;
     window.onkeydown = function (evt) {
         const sign = evt.shiftKey ? 1 : -1;
         const key = evt.which ? evt.which : evt.keyCode;
@@ -1377,25 +1472,6 @@ function initEventHandler() {
                 // Camera near plane dimensions.
                 camera.lrtb += sign * 0.1;
                 camera.distance += sign * deltaTranslate;
-                break;
-            case "D":
-                camera.eye[x] += deltaTranslate;
-                camera.center[x] += deltaTranslate;
-                break;
-
-            case "A":
-                camera.eye[x] -= deltaTranslate;
-                camera.center[x] -= deltaTranslate;
-                break;
-
-            case "W":
-                camera.eye[y] += deltaTranslate;
-                camera.center[y] += deltaTranslate;
-                break;
-
-            case "S":
-                camera.eye[y] -= deltaTranslate;
-                camera.center[y] -= deltaTranslate;
                 break;
         }
 
@@ -1446,6 +1522,7 @@ function render() {
         // in Kamera Koordinaten
         gl.uniformMatrix4fv(prog.mvMatrixUniform, false, models[i].mvMatrix);
         gl.uniform4fv(prog.colorUniform, models[i].color);
+        gl.uniformMatrix3fv(prog.nMatrixUniform, false, models[i].nMatrix);
         draw(models[i]);
     }
 }
