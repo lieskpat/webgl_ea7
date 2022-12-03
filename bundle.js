@@ -7,14 +7,16 @@ var vertexGlsl = `
     //Model-View-Matrix
     uniform mat4 uMVMatrix;
 
+    uniform vec4 uColor;
+
     varying vec4 vColor;
 
     void main() {
         
         gl_Position = uPMatrix * uMVMatrix * vec4(aPosition, 1.0);
 
-        vColor = vec4(aNormal.x, aNormal.y, aNormal.z, 1.0);
-        vColor = (vColor + 1.0) / 2.0;
+        vColor = vec4(aNormal.z, aNormal.z, aNormal.z, 1.0);
+        vColor = uColor * (vColor + 1.0) / 2.0;
 
     }
 `;
@@ -1099,7 +1101,7 @@ const camera = {
     // given in radian.
     zAngle: 0,
     // Distance in XZ-Plane from center when orbiting.
-    distance: 4,
+    distance: 8,
 };
 
 function start() {
@@ -1190,18 +1192,56 @@ function initUniforms() {
 
     // Model-View-Matrix.
     prog.mvMatrixUniform = gl.getUniformLocation(prog, "uMVMatrix");
+
+    prog.colorUniform = gl.getUniformLocation(prog, "uColor");
 }
 
 function initModels() {
     // fill-style
-    const fs = "fillwireframe";
-    createModel("torus", fs, [0.15, -0.3, -1.5], [0, 0, 0], [1, 1, 1]);
-    createModel("plane", "wireframe", [0, -0.8, 0], [0, 0, 0], [1, 1, 1]);
+    //const fs = "fillwireframe";
+    const fs = "fill";
+    //createModel("torus", fs, [0.15, -0.3, -1.5], [0, 0, 0], [1, 1, 1]);
+    createModel(
+        "plane",
+        "wireframe",
+        [1.0, 1.0, 1.0, 1.0],
+        [0, -0.8, 0],
+        [0, 0, 0],
+        [1, 1, 1]
+    );
 
-    createModel("sphere", fs, [1, -0.3, -1], [0, 0, 0], [0.25, 0.25, 0.25]);
-    createModel("sphere", fs, [-1, -0.3, -1], [0, 0, 0], [0.25, 0.25, 0.25]);
-    createModel("sphere", fs, [1, -0.3, 1], [0, 0, 0], [0.25, 0.25, 0.25]);
-    createModel("sphere", fs, [-1, -0.3, 1], [0, 0, 0], [0.25, 0.25, 0.25]);
+    createModel(
+        "sphere",
+        fs,
+        [1, 0, 0, 1],
+        [0, 0, 0],
+        [0, 0, 0],
+        [1.0, 1.0, 1.0]
+    );
+    createModel(
+        "sphere",
+        fs,
+        [0, 1, 0, 1],
+        [0, 0.5, 0.5],
+        [0, 0, 0],
+        [1.0, 1.0, 1.0]
+    );
+    createModel(
+        "sphere",
+        fs,
+        [0, 0, 1, 1],
+        [0, 1.0, 1.0],
+        [0, 0, 0],
+        [1.0, 1.0, 1.0]
+    );
+    createModel(
+        "sphere",
+        fs,
+        [1, 1, 1, 1],
+        [0, 1.0, 1.5],
+        [0, 0, 0],
+        [1.0, 1.0, 1.0]
+    );
     interactiveModel = models[0];
 }
 
@@ -1211,9 +1251,10 @@ function initModels() {
  * @parameter geometryname: string with name of geometry.
  * @parameter fillstyle: wireframe, fill, fillwireframe.
  */
-function createModel(geometryname, fillstyle, translate, rotate, scale) {
+function createModel(geometryname, fillstyle, color, translate, rotate, scale) {
     const model = {};
     model.fillstyle = fillstyle;
+    model.color = color;
     initDataAndBuffers(model, geometryname);
     initTransformations(model, translate, rotate, scale);
     models.push(model);
@@ -1298,8 +1339,11 @@ function initDataAndBuffers(model, geometryname) {
 
 function initEventHandler() {
     const deltaRotate = Math.PI / 36;
+    const deltaTranslate = 0.05;
+    const x = 0,
+        y = 1;
     window.onkeydown = function (evt) {
-        evt.shiftKey ? 1 : -1;
+        const sign = evt.shiftKey ? 1 : -1;
         const key = evt.which ? evt.which : evt.keyCode;
         const c = String.fromCharCode(key);
 
@@ -1318,9 +1362,11 @@ function initEventHandler() {
                 break;
             case "%":
                 camera.zAngle -= deltaRotate;
+                interactiveModel.rotate[1] -= deltaRotate;
                 break;
             case "'":
                 camera.zAngle += deltaRotate;
+                interactiveModel.rotate[1] += deltaRotate;
                 break;
             //case "N":
             //camera.distance += sign * deltaTranslate;
@@ -1329,48 +1375,27 @@ function initEventHandler() {
             //break;
             case "N":
                 // Camera near plane dimensions.
-                //camera.lrtb += sign * 0.1;
-                //camera.distance += sign * deltaTranslate;
+                camera.lrtb += sign * 0.1;
+                camera.distance += sign * deltaTranslate;
                 break;
             case "D":
-                //camera.eye[x] += deltaTranslate;
-                //camera.center[x] += deltaTranslate;
+                camera.eye[x] += deltaTranslate;
+                camera.center[x] += deltaTranslate;
                 break;
 
             case "A":
-                //camera.eye[x] -= deltaTranslate;
-                //camera.center[x] -= deltaTranslate;
+                camera.eye[x] -= deltaTranslate;
+                camera.center[x] -= deltaTranslate;
                 break;
 
             case "W":
-                //camera.eye[y] += deltaTranslate;
-                //camera.center[y] += deltaTranslate;
+                camera.eye[y] += deltaTranslate;
+                camera.center[y] += deltaTranslate;
                 break;
 
             case "S":
-                //camera.eye[y] -= deltaTranslate;
-                //camera.center[y] -= deltaTranslate;
-                break;
-
-            case "X":
-                //interactiveModel.rotate[0] += sign * deltaRotate;
-                break;
-
-            case "Y":
-                //interactiveModel.rotate[1] += sign * deltaRotate;
-                break;
-
-            case "Z":
-                //interactiveModel.rotate[2] += sign * deltaRotate;
-                break;
-            case "K":
-                interactiveModel = models[0];
-                interactiveModel.translate[2] = -1.5 * Math.cos(camera.zAngle);
-                interactiveModel.translate[0] = -1.5 * Math.sin(camera.zAngle);
-                interactiveModel = models[1];
-                camera.zAngle += deltaRotate;
-                //don't rotate the pane
-                interactiveModel.rotate[1] += deltaRotate;
+                camera.eye[y] -= deltaTranslate;
+                camera.center[y] -= deltaTranslate;
                 break;
         }
 
@@ -1420,6 +1445,7 @@ function render() {
         // binde die Model-View-Matrix zur Transformation der Vertex Welt-Koordinaten
         // in Kamera Koordinaten
         gl.uniformMatrix4fv(prog.mvMatrixUniform, false, models[i].mvMatrix);
+        gl.uniform4fv(prog.colorUniform, models[i].color);
         draw(models[i]);
     }
 }
